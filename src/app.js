@@ -99,7 +99,16 @@ app.post("/participants", async (req, res) => {
 app.get("/messages", async (req, res) => {
   let currentUser = req.headers.user;
   let latestMessages;
-  console.log(currentUser);
+  let limit;
+  //agora entra a parte da query string com o limite
+  const messagesLimit = parseInt(req.query.limit);
+  console.log(messagesLimit);
+  if (!messagesLimit) {
+    limit = 100;
+  } else {
+    limit = messagesLimit;
+  }
+  console.log(limit);
   try {
     //eu tenho que encontrar todas as mensagens que sejam para everyone e para a pessoa em questao. Ou eu posso ó pegar todas as que sejam fo typo "privada" e conferir se o direcionamento é para a pessoa current USer
     let messages = await db.collection("messages");
@@ -114,8 +123,8 @@ app.get("/messages", async (req, res) => {
       })
       .toArray();
     //tem que passar os resultados para array para poder os manipular e conferir? Acho que para os retornar, sim, com certeza. Mas o privado acho que ainda pode mexer mais aintes de ter um resultado
-    if (historyMessages.length > 2) {
-      latestMessages = historyMessages.slice(-2);
+    if (historyMessages.length > limit) {
+      latestMessages = historyMessages.slice(-limit);
     } else {
       latestMessages = historyMessages;
     }
