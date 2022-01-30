@@ -10,7 +10,7 @@ const result = dotenv.config();
 if (result.error) {
   console.log("Deu Algum Problema");
 }
-console.log(result.parsed);
+
 //esse console.log vai me retornar a informação dentro do .env o que, no caso, se refere à connection String
 
 //tem que lembrar de conectar com o MongoClient
@@ -63,13 +63,14 @@ app.get("/participants", async (req, res) => {
 
 app.post("/participants", async (req, res) => {
   const user = req.body;
+  console.log(user);
   //Essa constante estava dentro do const. A vcoloquei para fora porque o post nào parava
   const participants = await db.collection("participants").find().toArray();
   //Eu transformo a minha co;leçào em uma rraya para poder a manipular "procurar"cosias dentro dela.
 
   try {
     //Eu vou colocar minha validação dentro de um try/catch para evitar deixar meu código explodir por erros inesperados
-    const validation = messagesSchema.validate(user);
+    const validation = participantsSchema.validate(user);
 
     //com isso, estou chamando a validação
     if (validation.error) {
@@ -78,18 +79,15 @@ app.post("/participants", async (req, res) => {
         .send(
           "Entidade não processável. Ou o formato está incorreto, ou faltou algum dado"
         );
-    } else {
-      console.log("First Validation ok");
     }
 
     for (let i = 0; i < participants.length; i++) {
       if (participants[i].name === user.name) {
-        console.log("nome já em uso");
-        return res.sendStatus(418);
+        return res.status(418).send("Nome já em uso");
         //Lembrete: quando der retunr, retornam também o send de erro para não ficar rodando a requisição pra sempre
       }
     }
-    await db.collection("participants").insertOne(user);
+    await db.colletion("participants").insertOne(user);
     //Antes o await estava dentro de uma constante. Removi. Pelo visto deuc erto, mas não tenho certeza quanto ao porque
     res.sendStatus(200);
   } catch (error) {
@@ -102,7 +100,21 @@ app.post("/messages", async (req, res) => {
   const messageFrom = req.headers.user;
   //colocar validação para se esse for vazio
   const messageContent = req.body;
+  const participants = await db.collection("participants");
+
+  //esse é pra pegar a lista de participantes d euma forma que seja compreensivel para ver se o header está dentro da lista. Contudo, eu quero só pegar a coleção, e não a coleção em formato de array. Eu quero pegar como coleção para poder aplicar o "find" do proprio mongo
+
+  let userAuthorization = await participants.findOne({ name: messageFrom });
+
   try {
+    if (!userAuthorization) {
+      return res
+        .status(409)
+        .send(
+          "Confira se realizou o login e está on-line antes de enviar mensagem"
+        );
+    }
+
     const validation = messagesSchema.validate(messageContent);
     if (validation.error) {
       return res
@@ -110,9 +122,9 @@ app.post("/messages", async (req, res) => {
         .send(
           "Entidade não processável. Ou o formato está incorreto, ou faltou algum dado"
         );
-    } else {
-      console.log("First Validation ok");
     }
+    //depois de passar pela primeira validação, eu tenho que conferir se o header está dentro da lista de usuários, ou seja, na coleção de participants
+
     //Agora, antes de inserir a mensagem direto na coleçào, ela precisa ser completada, com o header e com o timestamp.
     let messageTime = dayjs().format("HH:mm:ss");
     let sentMessage = {
@@ -123,7 +135,7 @@ app.post("/messages", async (req, res) => {
       time: messageTime,
     };
 
-    await db.collection("messages").insertOne(sentMessage);
+    await db.colletion("messages").insertOne(sentMessage);
     res.sendStatus(201);
   } catch (error) {
     console.log(error);
