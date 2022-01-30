@@ -96,6 +96,28 @@ app.post("/participants", async (req, res) => {
   }
 });
 
+app.get("/messages", async (req, res) => {
+  let currentUser = req.headers.user;
+  console.log(currentUser);
+  //eu tenho que encontrar todas as mensagens que sejam para everyone e para a pessoa em questao. Ou eu posso ó pegar todas as que sejam fo typo "privada" e conferir se o direcionamento é para a pessoa current USer
+  let messages = await db.collection("messages");
+
+  let publicMessages = await messages.find({ type: "message" }).toArray();
+  let privateMessagesGot = await messages
+    .find({ $and: [{ type: "private_message" }, { to: currentUser }] })
+    .toArray();
+  let privateMessagesSent = await messages
+    .find({ $and: [{ type: "private_message" }, { from: currentUser }] })
+    .toArray();
+  //tem que passar os resultados para array para poder os manipular e conferir? Acho que para os retornar, sim, com certeza. Mas o privado acho que ainda pode mexer mais aintes de ter um resultado
+
+  let historyMessages = publicMessages.concat(
+    privateMessagesGot.concat(privateMessagesSent)
+  );
+
+  console.log(historyMessages);
+});
+
 app.post("/messages", async (req, res) => {
   const messageFrom = req.headers.user;
   //colocar validação para se esse for vazio
@@ -135,17 +157,13 @@ app.post("/messages", async (req, res) => {
       time: messageTime,
     };
 
-    await db.colletion("messages").insertOne(sentMessage);
+    await db.collection("messages").insertOne(sentMessage);
     res.sendStatus(201);
   } catch (error) {
     console.log(error);
     res.sendStatus(500);
   }
 });
-
-// app.get('/messages', async (req,res)=> {
-
-// });
 
 // app.post('/status', async (req,res)=> {
 
