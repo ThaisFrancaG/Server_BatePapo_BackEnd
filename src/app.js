@@ -87,7 +87,12 @@ app.post("/participants", async (req, res) => {
         //Lembrete: quando der retunr, retornam também o send de erro para não ficar rodando a requisição pra sempre
       }
     }
-    await db.colletion("participants").insertOne(user);
+    //Agora tem que adicionar o timeStamp
+    let loggedUser = {
+      name: user.name,
+      lastStatus: Date.now(),
+    };
+    await db.collection("participants").insertOne(loggedUser);
     //Antes o await estava dentro de uma constante. Removi. Pelo visto deuc erto, mas não tenho certeza quanto ao porque
     res.sendStatus(200);
   } catch (error) {
@@ -102,13 +107,13 @@ app.get("/messages", async (req, res) => {
   let limit;
   //agora entra a parte da query string com o limite
   const messagesLimit = parseInt(req.query.limit);
-  console.log(messagesLimit);
+
   if (!messagesLimit) {
     limit = 100;
   } else {
     limit = messagesLimit;
   }
-  console.log(limit);
+
   try {
     //eu tenho que encontrar todas as mensagens que sejam para everyone e para a pessoa em questao. Ou eu posso ó pegar todas as que sejam fo typo "privada" e conferir se o direcionamento é para a pessoa current USer
     let messages = await db.collection("messages");
@@ -182,9 +187,46 @@ app.post("/messages", async (req, res) => {
   }
 });
 
-// app.post('/status', async (req,res)=> {
+app.post("/status", async (req, res) => {
+  let userStatus = false;
+  let currentUser = req.headers.user;
+  let currentParticipants = await db
+    .collection("participants")
+    .find()
+    .toArray();
+  let documentcurrentParticipants = await db.collection("participants");
 
-// });
+  let currentId;
+
+  for (let i = 0; i < currentParticipants.length; i++) {
+    if (currentParticipants[i].name === currentUser) {
+      userStatus = true;
+      currentId = currentParticipants[i]._id;
+      //com isso eu pego o ID sozinho. Mas não acho que é o jeito ideal
+      break;
+    }
+  }
+  try {
+    if (!userStatus) {
+      console.log("Usuário não está na lista");
+      res.sendStatus(404);
+    }
+
+    let currentTimeStamp = Date.now();
+    //agora que já se conferiu que o user está na lista online, falta atualizar o timeStamp
+    //Primeiro, eu tenho que recuperar o usuário usando o id.
+
+    await documentcurrentParticipants.updateOne(
+      {
+        _id: ObjectId(currentId),
+      },
+      { $set: { lastStatus: currentTimeStamp } }
+    );
+  } catch (error) {
+    console.log(error);
+    res.sendStatus(500);
+  }
+});
 
 app.listen(5000, () => {
   console.log("Server is running at http://localhost:5000/");
