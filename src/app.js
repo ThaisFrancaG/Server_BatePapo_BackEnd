@@ -62,31 +62,43 @@ catch (error){
 }
 });
 
-// app.post('/participants', async (req,res)=>
-// {
-//     //Eu vou colocar minha validação dentro de um try/catch para evitar deixar meu código explodir por erros inesperados
-//     try{
-//         const user = req.body;
-//         //com isso, estou pegando o usuário pelo post
-//         const validation   = participantsSchema.validate(user);
-//         //com isso, estou chamando a validação
-//         if(validation.error){
-//             res.status(422).send("Entidade não processável. Ou o formato está incorreto, ou faltou algum dado");
-//             return
-//         }
-//         else{console.log("Validation ok")}
-
-//         const participants = await db.collection('participants').insert(user);
-//         res.status(200);
-//         console.log(participants);
+app.post('/participants', async (req,res)=>
+{
+    const user = req.body;
+     //Essa constante estava dentro do const. A vcoloquei para fora porque o post nào parava
+    const participants = await db.collection('participants').find().toArray();
+    //Eu transformo a minha co;leçào em uma rraya para poder a manipular "procurar"cosias dentro dela.
+  
+  
+    try{
+         
+    //Eu vou colocar minha validação dentro de um try/catch para evitar deixar meu código explodir por erros inesperados
+        const validation   = participantsSchema.validate(user);
         
-// }catch(error){
-// console.log(error);
-// res.sendStatus(500);
-// }
+        //com isso, estou chamando a validação
+        if(validation.error){
+           
+            return res.status(422).send("Entidade não processável. Ou o formato está incorreto, ou faltou algum dado");
+        }
+        else{console.log("First Validation ok");}
+      
+for (let i=0;i<participants.length;i++){
+    if(participants[i].name===user.name){
+        console.log("nome já em uso");
+        return res.sendStatus(418);
+        //Lembrete: quando der retunr, retornam também o send de erro para não ficar rodando a requisição pra sempre
+    }
+}
+        await db.collection('participants').insertOne(user);
+        //Antes o await estava dentro de uma constante. Removi. Pelo visto deuc erto, mas não tenho certeza quanto ao porque
+        res.sendStatus(200);}
+catch(error){
+console.log(error);
+res.sendStatus(500);
+}
 
-// }
-// );
+}
+);
 
 // app.get('/participants', async (req,res)=> {
 
