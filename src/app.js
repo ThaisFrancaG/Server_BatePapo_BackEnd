@@ -63,7 +63,7 @@ app.get("/participants", async (req, res) => {
 
 app.post("/participants", async (req, res) => {
   const user = req.body;
-  console.log(user);
+
   //Essa constante estava dentro do const. A vcoloquei para fora porque o post nào parava
   const participants = await db.collection("participants").find().toArray();
   //Eu transformo a minha co;leçào em uma rraya para poder a manipular "procurar"cosias dentro dela.
@@ -222,12 +222,48 @@ app.post("/status", async (req, res) => {
       },
       { $set: { lastStatus: currentTimeStamp } }
     );
+    res.sendStatus(200);
   } catch (error) {
     console.log(error);
     res.sendStatus(500);
   }
 });
 
+let intervalID = setInterval(checkParticipants, [15000]);
+
+async function checkParticipants() {
+  try {
+    let participantList = await db.collection("participants");
+    let participantsArray = await participantList.find().toArray();
+    let originalLength = participantsArray.length;
+    let timeNow = Date.now();
+    for (let i = 0; i < originalLength; i++) {
+      let difference = Math.abs(
+        parseInt(participantsArray[i].lastStatus) - parseInt(timeNow)
+      );
+      if (difference > 100) {
+        let id = participantsArray[i]._id;
+        let logOutDocument = await participantList
+          .find({ _id: ObjectId(id) })
+          .toArray();
+
+        let logOutName = logOutDocument[0].name;
+
+        let logOutMessage = {
+          from: "xxx",
+          to: "Todos",
+          text: `${logOutName} sai da sala...`,
+          type: "status",
+          time: timeNow,
+        };
+        await db.collection("messages").insertOne(logOutMessage);
+        participantList.deleteOne({ _id: ObjectId(id) });
+      }
+    }
+  } catch (error) {
+    console.log(error);
+  }
+}
 app.listen(5000, () => {
   console.log("Server is running at http://localhost:5000/");
 });
